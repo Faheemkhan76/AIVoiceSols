@@ -1,0 +1,15 @@
+# Ignore library folder
+library/
+
+# Ignore environment files
+.env
+
+# Ignore Python virtual environment folders
+livekit/
+venv/
+
+#Ignore library folder
+__pycache__/
+KMS/
+
+

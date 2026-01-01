@@ -1,0 +1,3 @@
+agent:
+  identity: "365sols"      # must be unique per agent instance
+  name: "AIVoiceSols"         # display name shown in room

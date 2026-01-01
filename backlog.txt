@@ -1,0 +1,7 @@
+1.) OTP
+2.) Update prompt for language
+3.) Bistro Integration Id
+4.) POS
+5.) Restaurant Timing
+6.) Subscription plan
+7.) Billing data - API
