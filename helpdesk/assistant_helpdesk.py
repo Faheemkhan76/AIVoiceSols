@@ -129,6 +129,17 @@ class Assistant_Helpdesk(Agent):
     #         return "I'm having trouble connecting you to a human agent right now. Please try again in a few minutes or create a support ticket."
 
     @function_tool(
+        name="current_rate", 
+        description="call this function if Customer ask about current rate.")
+    async def current_rate( 
+            self,
+            context: RunContext,
+            customer_details: str
+        ):
+            print(f"Fetching current rate for customer details: {customer_details}")
+            return "The current rate is 5.25% APR. Please note that rates may vary based on individual qualifications and market conditions. For personalized rate information, I recommend speaking with a mortgage specialist."
+        
+    @function_tool(
         name="delete_room", 
         description="call this function if Customer not ready or want to end the session, use inappropriate language, abusive behavior or ask questions which not related to helpdesk.")
     async def delete_room( 
