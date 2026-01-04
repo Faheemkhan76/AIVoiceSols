@@ -71,35 +71,13 @@ class HelpdeskSession(BaseSession):
             user_away_timeout=8
             )
 
-    async def get_organization(self, customer_reference: str):
-        """
-        Fetch organization details from the API
-        Returns: dict with organization details or None if failed
-        """
-        try:
-            response = await self.client.call_api_unified(
-                method="GET",
-                path_or_url=f"api/organizations/{customer_reference}"
-            )
-            if response.status_code == 200:
-                org_data = response.json()
-                print(f"Organization data fetched: {org_data.get('organization', {}).get('Name', 'Unknown')}")
-                return org_data.get("organization")
-            else:
-                print(f"Failed to fetch organization: {response.status_code} - {response.text}")
-                return None
-        except Exception as e:
-            print(f"Error fetching organization: {e}")
-            return None
-
     async def start_session(self, ctx: JobContext, session: AgentSession, session_param, startdatetime):
         sessionid = session_param["SessionReference"]
         customer_reference = session_param["CustomerReference"]
         phonenumber = session_param.get("PhoneNumber", "")
         
         # Fetch organization details
-        organization = await self.get_organization(customer_reference)
-        
+        organization = await Helper_Helpdesk.get_organization(customer_reference)
         # Create session log with SQL Server compatible datetime format
         try:
             # Use organization rate if available, otherwise default to 0.15
