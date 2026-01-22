@@ -93,9 +93,9 @@ class Assistant_OrderMe(Agent):
         context: RunContext,
         phone_number: str
     ):
-        otp = 1234 # Helper.generate_otp()
+        otp = Helper.generate_otp()
         print(f"OTP generated: {otp}")
-        # await Helper.send_sms_via_sns(phone_number, f"Your OTP is '{otp}'")
+        await Helper.send_sms_via_sns(phone_number, f"'{otp}' is your one time password (OTP) for order verification.")
         print(phone_number)
         return f"OTP is '{otp}' (DO NOT share this with anyone), confirm the OTP with the user."  # In real implementation, generate and send OTP to customer
 

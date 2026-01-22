@@ -24,17 +24,7 @@ api_base_url=os.environ.get("CFI_BASE_URL")
 
 async def entrypoint(ctx: agents.JobContext):    
     startdatetime = datetime.now()
-    # manage session shutdown
-    # async def manage_shutdown(participant, session_info, startdatetime, reference):
-    #     print(f"Session ended for participant: {participant}, session_info: {session_info}, reference: {reference}")
-    #     if isinstance(session_info, dict):
-    #         session_handler = SessionFactory.create_session(session_info['ApplicationName'])
-    #         await session_handler.manage_shutdown(ctx, session, participant, startdatetime, reference)
-    #     else:
-    #         # Default to CallForInterview for non-dict session_info
-    #         session_handler = SessionFactory.create_session("CALLFORINTERVIEW")
-    #         await session_handler.manage_shutdown(ctx, session, participant, startdatetime, reference)
-            
+             
     reference = "disabled"    
     session_id = ctx.room.name
     session_info = Helper.parse_session(session_id)
@@ -125,8 +115,7 @@ async def entrypoint(ctx: agents.JobContext):
     # Register shutdown callback to perform session end activities.
     print(f'session_param: {session_param}')
     ctx.add_shutdown_callback(lambda: session_handler.manage_shutdown(ctx, session,session_param, participant, startdatetime, reference)) 
-    # ctx.add_shutdown_callback(lambda: manage_shutdown(participant.name, session_info, startdatetime, reference)) 
-
+   
 if __name__ == "__main__":
-   agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint,  agent_name="365AIVoiceSols"))
-   #agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))  
+   #agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint,  agent_name="365AIVoiceSols"))
+   agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))  

@@ -10,6 +10,8 @@ from common.apiclient import ApiClient
 from datetime import datetime
 import os, json
 from common.helper import Helper
+from livekit import api
+from livekit.api import TrackEgressRequest, EncodedFileOutput, S3Upload
 #from test import upload_transcript
 
 class CallForInterviewCorpSession(BaseSession):
@@ -48,6 +50,60 @@ class CallForInterviewCorpSession(BaseSession):
         except ValueError as e:
             raise ValueError(f"Invalid interview string: {interview_str}. All parts must be integers: {e}")
 
+    async def start_recording(self, ctx: JobContext, recording_path: str):
+        """
+        Start recording the room audio to S3
+        """
+        try:
+            room_name = ctx.room.name
+            
+            # Get S3 configuration from environment
+            bucket_name = os.environ.get("CORP_AGENT_BUCKET_NAME")
+            aws_access_key = os.environ.get("AWS_CORP_CLIENT_KEY")
+            aws_secret_key = os.environ.get("AWS_CORP_CLIENT_SECRET")
+            aws_region = os.environ.get("AWS_CORP_S3_REGION")
+            
+            if not bucket_name or not aws_access_key or not aws_secret_key:
+                print("Warning: AWS credentials not configured. Recording disabled.")
+                return
+            
+            print(f"Starting recording for room: {room_name}")
+            print(f"Recording will be saved to: s3://{bucket_name}/{recording_path}")
+            
+            # Initialize LiveKit API
+            livekit_api = api.LiveKitAPI()
+            
+            # Start room composite recording
+            egress_info = await livekit_api.egress.start_room_composite_egress(
+                api.RoomCompositeEgressRequest(
+                    room_name=room_name,
+                    layout="speaker",
+                    audio_only=False,  # Record both audio and video
+                    file_outputs=[
+                        EncodedFileOutput(
+                            file_type=api.EncodedFileType.MP4,
+                            filepath=recording_path,
+                            s3=S3Upload(
+                                access_key=aws_access_key,
+                                secret=aws_secret_key,
+                                region=aws_region,
+                                bucket=bucket_name
+                            )
+                        )
+                    ]
+                )
+            )
+            
+            print(f"Recording started successfully. Egress ID: {egress_info.egress_id}")
+            
+            # Store egress ID in context for later reference
+            ctx.room.metadata = json.dumps({"egress_id": egress_info.egress_id})
+            
+        except Exception as e:
+            print(f"Failed to start recording: {e}")
+            import traceback
+            traceback.print_exc()
+
     async def create_agent_session(self) -> AgentSession:
         return AgentSession(
             llm=realtime.RealtimeModel(
@@ -60,7 +116,7 @@ class CallForInterviewCorpSession(BaseSession):
                     eagerness="auto",
                 )
             ),
-            user_away_timeout=25
+            user_away_timeout=12
         )
 
     async def start_session(self, ctx: JobContext, session: AgentSession, session_param, startdatetime):
@@ -78,13 +134,25 @@ class CallForInterviewCorpSession(BaseSession):
             candidate_id = customer_reference['candidate_id']
         response = await self.client.call_api_unified(method="GET", path_or_url=f"/api/organizations/{organization_id}/jobrequisitions/{jobrequisition_id}/candidates/{candidate_id}/sessions/{session_id}" )
         instructions = response.json()['instructions']
+        candidate_acknowlege_recording_flag = response.json().get('candidateacknowlegerecordingflag', False)
+        record_session_flag = response.json().get('recordsessionflag', False)
 
+        recording_path = "disabled"
+        if candidate_acknowlege_recording_flag and record_session_flag:
+            # Define the S3 path for the recording
+            recording_path = f"organizations/{organization_id}/jobrequisitions/{jobrequisition_id}/candidates/{candidate_id}/sessions/{session_id}/recording.mp4"
+            # Start recording for the session
+            await self.start_recording(ctx, recording_path)
+        
+        print(f"Recording path: {recording_path}")
+        
         await session.start(
             room=ctx.room,
             agent=Assistant_CallforInterview_Corp(instructions=instructions),
             room_input_options=RoomInputOptions(audio_enabled=True, text_enabled=True)
         )
         await self.client.call_api_unified(method="PATCH", path_or_url=f"/api/organizations/{organization_id}/jobrequisitions/{jobrequisition_id}/candidates/{candidate_id}/sessions/{session_id}", json={ 
+            "recordingpath": recording_path,                                                                                                                                                                                                
             "startdatetime": f'{startdatetime.now().strftime("%Y-%m-%d %H:%M:%S")}',
             "status": 2 #session started
         })  
@@ -117,7 +185,6 @@ class CallForInterviewCorpSession(BaseSession):
         try:
             response = await self.client.call_api_unified(method="PATCH", path_or_url=f"/api/organizations/{organization_id}/jobrequisitions/{jobrequisition_id}/candidates/{candidate_id}/sessions/{session_id}", json={ 
                         "Transcriptpath": transcript_object_key,
-                        "RecordingPath": reference,
                         "enddatetime": f'{enddatetime.strftime("%Y-%m-%d %H:%M:%S")}',
                         "SecondsConsumed": secondsconsumed,#in Seconds
                         "Status": 3 #session end
